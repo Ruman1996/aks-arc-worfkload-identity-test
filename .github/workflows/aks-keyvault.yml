@@ -1,0 +1,81 @@
+
+name: AKS ARC Key Vault PoC
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  keyvault-test:
+    name: Read Key Vault from AKS
+    runs-on: arc-kv-poc
+
+    env:
+      KEYVAULT_URL: https://kv-arc-access-test.vault.azure.net/
+      SECRET_NAME: arc-poc-secret
+
+    steps:
+      - name: Verify ARC runner
+        run: |
+          echo "Runner: $RUNNER_NAME"
+          echo "Operating system: $RUNNER_OS"
+          echo "Hostname: $(hostname)"
+          python3 --version
+
+      - name: Verify AKS Workload Identity injection
+        run: |
+          echo "Checking Azure Workload Identity environment"
+
+          test -n "$AZURE_CLIENT_ID"
+          test -n "$AZURE_TENANT_ID"
+          test -n "$AZURE_FEDERATED_TOKEN_FILE"
+
+          echo "Client ID: $AZURE_CLIENT_ID"
+          echo "Tenant ID: $AZURE_TENANT_ID"
+
+          test -f "$AZURE_FEDERATED_TOKEN_FILE"
+
+          echo "Workload Identity environment detected."
+
+      - name: Install Azure SDK
+        run: |
+          python3 -m pip install \
+            azure-identity \
+            azure-keyvault-secrets
+
+      - name: Read secret from Key Vault
+        run: |
+          cat > read_secret.py <<'PY'
+          import os
+          from azure.identity import DefaultAzureCredential
+          from azure.keyvault.secrets import SecretClient
+
+          vault_url = os.environ["KEYVAULT_URL"]
+          secret_name = os.environ["SECRET_NAME"]
+
+          credential = DefaultAzureCredential()
+
+          client = SecretClient(
+              vault_url=vault_url,
+              credential=credential
+          )
+
+          secret = client.get_secret(secret_name)
+
+          print("Azure authentication: SUCCESS")
+          print(f"Key Vault: {vault_url}")
+          print(f"Secret name: {secret.name}")
+          print(f"Secret version: {secret.properties.version}")
+
+          expected_value = "Hello-from-ARC-Workload-Identity"
+
+          if secret.value != expected_value:
+              raise RuntimeError("Secret value did not match expected test value")
+
+          print("Secret value validation: PASSED")
+          print("KEY VAULT POC: SUCCESS")
+          PY
+
+          python3 read_secret.py
