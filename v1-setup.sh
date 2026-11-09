@@ -8,7 +8,7 @@ set -Eeuo pipefail
 export SUBSCRIPTION_ID="a2b28c85-1948-4263-90ca-bade2bac4df4"
 
 export LOCATION="eastus"
-export RESOURCE_GROUP="kml_rg_main-951bd60c4be54f3c"
+export RESOURCE_GROUP="kml_rg_main-c00c35e5539841e7"
 export AKS_NAME="test-gh-runner"
 
 # ARC namespaces
@@ -21,7 +21,7 @@ export UAMI_NAME="uami-gh-kv-reader"
 
 # Key Vault - Access Policy authorization mode
 # The existing kv-access-policy vault in your notes used this mode.
-export KEYVAULT_NAME="kv-access-policy"
+export KEYVAULT_NAME="kv-access-policy-1"
 export SECRET_NAME="arc-poc-secret"
 export SECRET_VALUE="Hello-from-ARC-Workload-Identity"
 
@@ -32,8 +32,8 @@ export SERVICE_ACCOUNT_NAME="gha-kv-reader"
 export FEDERATED_CREDENTIAL_NAME="fic-gha-kv-reader"
 
 # Existing GitHub App - no App creation is performed here.
-export GITHUB_OWNER="your-github-owner"
-export GITHUB_REPOSITORY="your-repository"
+export GITHUB_OWNER="ruman1996"
+export GITHUB_REPOSITORY="aks-arc-worfkload-identity-test"
 export GITHUB_CONFIG_URL="https://github.com/${GITHUB_OWNER}/${GITHUB_REPOSITORY}"
 
 export GITHUB_APP_ID="5679935"
@@ -199,6 +199,7 @@ else
     --resource-group "$RESOURCE_GROUP" \
     --location "$LOCATION" \
     --sku standard \
+    --enable-rbac-authorization false \
     --retention-days 7
 
 fi
