@@ -470,3 +470,11 @@ That is how the runner receives the Azure identity
 
 
 export GITHUB_CONFIG_URL="https://github.com/ruman1996"
+
+
+
+helm template arc-kv-poc \
+  oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set \
+  --namespace arc-runners \
+  --version "$ARC_VERSION" \
+  -f arc-runner-values.yaml
