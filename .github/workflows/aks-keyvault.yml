@@ -1,4 +1,4 @@
-
+```yaml
 name: AKS ARC Key Vault PoC
 
 on:
@@ -15,47 +15,101 @@ jobs:
     env:
       KEYVAULT_URL: https://kv-access-policy.vault.azure.net/
       SECRET_NAME: arc-poc-secret
+      EXPECTED_SECRET_VALUE: Hello-from-ARC-Workload-Identity
 
     steps:
-      - name: Verify ARC runner
+      - name: Verify ARC runner and environment
+        shell: bash
         run: |
-          echo "Runner: $RUNNER_NAME"
-          echo "Operating system: $RUNNER_OS"
+          set -euo pipefail
+
+          echo "===== ARC Runner ====="
+          echo "Runner: ${RUNNER_NAME:-unknown}"
+          echo "OS: ${RUNNER_OS:-unknown}"
           echo "Hostname: $(hostname)"
-          python3 --version
+          echo "User: $(whoami)"
+          echo "Python: $(python3 --version)"
+
+          echo "===== Operating System ====="
+          cat /etc/os-release
+
+          echo "===== Permissions ====="
+          id
+          if command -v sudo >/dev/null 2>&1; then
+            echo "sudo is available"
+          else
+            echo "sudo is not available"
+          fi
 
       - name: Verify AKS Workload Identity injection
+        shell: bash
         run: |
+          set -euo pipefail
+
           echo "Checking Azure Workload Identity environment"
 
-          test -n "$AZURE_CLIENT_ID"
-          test -n "$AZURE_TENANT_ID"
-          test -n "$AZURE_FEDERATED_TOKEN_FILE"
+          : "${AZURE_CLIENT_ID:?AZURE_CLIENT_ID is missing}"
+          : "${AZURE_TENANT_ID:?AZURE_TENANT_ID is missing}"
+          : "${AZURE_FEDERATED_TOKEN_FILE:?AZURE_FEDERATED_TOKEN_FILE is missing}"
 
-          echo "Client ID: $AZURE_CLIENT_ID"
-          echo "Tenant ID: $AZURE_TENANT_ID"
+          echo "Client ID: ${AZURE_CLIENT_ID}"
+          echo "Tenant ID: ${AZURE_TENANT_ID}"
 
-          test -f "$AZURE_FEDERATED_TOKEN_FILE"
+          test -f "${AZURE_FEDERATED_TOKEN_FILE}"
+          test -r "${AZURE_FEDERATED_TOKEN_FILE}"
 
-          echo "Workload Identity environment detected."
+          echo "Federated token file exists and is readable."
+          echo "AKS Workload Identity injection: PASSED"
 
-      - name: Install Azure SDK
+      - name: Install Python dependencies
+        shell: bash
         run: |
-          python3 -m ensurepip --upgrade || true
-          python3 -m pip --version
-          python3 -m pip install \
+          set -euo pipefail
+
+          # This PoC installation path expects an Ubuntu/Debian runner.
+          if ! command -v apt-get >/dev/null 2>&1; then
+            echo "ERROR: apt-get is unavailable. Use a custom runner image with pip and venv preinstalled."
+            exit 1
+          fi
+
+          # Install OS packages only when the runner has sufficient privileges.
+          if [ "$(id -u)" -eq 0 ]; then
+            apt-get update
+            apt-get install -y python3-venv python3-pip
+          elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y python3-venv python3-pip
+          else
+            echo "ERROR: Runner has no root/sudo access to install Python packages."
+            echo "Build a custom ARC runner image with python3-venv and pip installed."
+            exit 1
+          fi
+
+          # Create an isolated environment for the Azure SDK.
+          python3 -m venv "${RUNNER_TEMP}/azure-venv"
+
+          "${RUNNER_TEMP}/azure-venv/bin/python" -m pip install --upgrade pip
+          "${RUNNER_TEMP}/azure-venv/bin/python" -m pip install \
             azure-identity \
             azure-keyvault-secrets
 
-      - name: Read secret from Key Vault
+          echo "Azure SDK installation: PASSED"
+
+      - name: Read and validate Key Vault secret
+        shell: bash
         run: |
-          cat > read_secret.py <<'PY'
+          set -euo pipefail
+
+          cat > "${RUNNER_TEMP}/read_secret.py" <<'PY'
           import os
+          import sys
+
           from azure.identity import DefaultAzureCredential
           from azure.keyvault.secrets import SecretClient
 
           vault_url = os.environ["KEYVAULT_URL"]
           secret_name = os.environ["SECRET_NAME"]
+          expected_value = os.environ["EXPECTED_SECRET_VALUE"]
 
           credential = DefaultAzureCredential()
 
@@ -64,20 +118,25 @@ jobs:
               credential=credential
           )
 
+          print("Requesting secret from Azure Key Vault...")
+
           secret = client.get_secret(secret_name)
 
           print("Azure authentication: SUCCESS")
-          print(f"Key Vault: {vault_url}")
+          print(f"Key Vault URL: {vault_url}")
           print(f"Secret name: {secret.name}")
           print(f"Secret version: {secret.properties.version}")
 
-          expected_value = "Hello-from-ARC-Workload-Identity"
-
           if secret.value != expected_value:
-              raise RuntimeError("Secret value did not match expected test value")
+              print("Secret value validation: FAILED")
+              sys.exit(1)
 
           print("Secret value validation: PASSED")
           print("KEY VAULT POC: SUCCESS")
+
+          credential.close()
           PY
 
-          python3 read_secret.py
+          "${RUNNER_TEMP}/azure-venv/bin/python" \
+            "${RUNNER_TEMP}/read_secret.py"
+```
