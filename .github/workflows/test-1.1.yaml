@@ -1,0 +1,56 @@
+
+name: AKS ARC Key Vault Container Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  keyvault-test:
+    name: Read Key Vault secret from job container
+    runs-on: arc-kv-poc
+
+    container:
+      image: mcr.microsoft.com/azure-cli:latest
+
+    steps:
+      - name: Verify Workload Identity injection
+        shell: bash
+        run: |
+          echo "Checking Azure Workload Identity environment..."
+
+          test -n "$AZURE_CLIENT_ID"
+          test -n "$AZURE_TENANT_ID"
+          test -f "$AZURE_FEDERATED_TOKEN_FILE"
+
+          echo "Client ID: $AZURE_CLIENT_ID"
+          echo "Tenant ID: $AZURE_TENANT_ID"
+          echo "Federated token file exists."
+
+      - name: Login to Azure using Workload Identity
+        shell: bash
+        run: |
+          az login \
+            --service-principal \
+            --username "$AZURE_CLIENT_ID" \
+            --tenant "$AZURE_TENANT_ID" \
+            --federated-token "$(cat "$AZURE_FEDERATED_TOKEN_FILE")" \
+            --allow-no-subscriptions
+
+      - name: Read Key Vault secret
+        shell: bash
+        run: |
+          SECRET_VALUE=$(az keyvault secret show \
+            --vault-name kv-access-policy \
+            --name arc-poc-secret \
+            --query value \
+            --output tsv)
+
+          if [ "$SECRET_VALUE" != "Hello-from-ARC-Workload-Identity" ]; then
+            echo "Secret validation failed."
+            exit 1
+          fi
+
+          echo "SUCCESS: Job container read and validated the Key Vault secret."
