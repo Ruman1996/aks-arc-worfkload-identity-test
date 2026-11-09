@@ -6,7 +6,10 @@ runnerScaleSetName: arc-kv-poc
 
 minRunners: 0
 maxRunners: 1
-
+# Explicitly identify the ARC controller ServiceAccount
+controllerServiceAccount:
+  namespace: arc-systems
+  name: arc-gha-rs-controller
 template:
   metadata:
     labels:
