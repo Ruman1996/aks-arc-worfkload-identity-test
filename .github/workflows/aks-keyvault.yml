@@ -13,7 +13,7 @@ jobs:
     runs-on: arc-kv-poc
 
     env:
-      KEYVAULT_URL: https://kv-arc-access-test.vault.azure.net/
+      KEYVAULT_URL: https://kv-access-policy.vault.azure.net/
       SECRET_NAME: arc-poc-secret
 
     steps:
