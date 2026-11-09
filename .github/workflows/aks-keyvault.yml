@@ -12,7 +12,7 @@ jobs:
     runs-on: arc-kv-poc
 
     env:
-      KEYVAULT_URL: https://kv-access-policy.vault.azure.net/
+      KEYVAULT_URL: https://kv-access-policy-1.vault.azure.net/
       SECRET_NAME: arc-poc-secret
       EXPECTED_SECRET_VALUE: Hello-from-ARC-Workload-Identity
 
