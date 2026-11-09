@@ -41,7 +41,7 @@ jobs:
 
       - name: Install Azure SDK
         run: |
-          python3 -m pip install \
+          python3 -m pip3 install \
             azure-identity \
             azure-keyvault-secrets
 
