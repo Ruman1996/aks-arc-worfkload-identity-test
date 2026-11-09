@@ -1,18 +1,46 @@
-githubConfigUrl: "https://github.com/ruman1996"
-
+githubConfigUrl: https://github.com/ruman1996/aks-arc-worfkload-identity-test
 githubConfigSecret: arc-github-app
 
 runnerScaleSetName: arc-kv-poc
 
 minRunners: 0
 maxRunners: 1
-# Explicitly identify the ARC controller ServiceAccount
-controllerServiceAccount:
-  namespace: arc-systems
-  name: arc-gha-rs-controller
+
 template:
   metadata:
     labels:
       azure.workload.identity/use: "true"
+
   spec:
-    serviceAccountName: gha-kv-reader
+    serviceAccountName: arc-runner
+
+    containers:
+      - name: runner
+        image: ghcr.io/actions/actions-runner:latest
+        command:
+          - /home/runner/run.sh
+
+        env:
+          - name: ACTIONS_RUNNER_CONTAINER_HOOKS
+            value: /home/runner/k8s-novolume/index.js
+
+          - name: ACTIONS_RUNNER_POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+
+          - name: ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER
+            value: "true"
+
+          - name: ACTIONS_RUNNER_CONTAINER_HOOK_TEMPLATE
+            value: /home/runner/pod-template/content
+
+        volumeMounts:
+          - name: job-pod-template
+            mountPath: /home/runner/pod-template
+            readOnly: true
+
+    volumes:
+      - name: job-pod-template
+        configMap:
+          name: arc-job-pod-template
