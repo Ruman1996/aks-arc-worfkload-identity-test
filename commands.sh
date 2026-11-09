@@ -331,3 +331,40 @@ az keyvault secret set \
   },
   "value": "Hello-from-ARC-Workload-Identity"
 }
+
+
+# giving access to the trust in the UMAI 
+
+export AKS_ISSUER=$(az aks show \
+  -g "$RESOURCE_GROUP" \
+  -n "$AKS_NAME" \
+  --query oidcIssuerProfile.issuerUrl -o tsv)
+  
+az identity federated-credential create \
+  --name fic-gha-kv-reader \
+  --resource-group "kml_rg_main-951bd60c4be54f3c" \
+  --identity-name "uami-gh-token-broker" \
+  --issuer "$AKS_ISSUER" \
+  --subject "system:serviceaccount:arc-runners:gha-kv-reader" \
+  --audiences "api://AzureADTokenExchange"
+
+
+az identity federated-credential create \
+  --name fic-gha-kv-reader \
+  --resource-group "kml_rg_main-951bd60c4be54f3c" \
+  --identity-name "uami-gh-token-broker" \
+  --issuer "$AKS_ISSUER" \
+  --subject "system:serviceaccount:arc-runners:gha-kv-reader" \
+  --audiences "api://AzureADTokenExchange"
+{
+  "audiences": [
+    "api://AzureADTokenExchange"
+  ],
+  "id": "/subscriptions/a2b28c85-1948-4263-90ca-bade2bac4df4/resourcegroups/kml_rg_main-951bd60c4be54f3c/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uami-gh-token-broker/federatedIdentityCredentials/fic-gha-kv-reader",
+  "issuer": "https://eastus.oic.prod-aks.azure.com/30fe8ff1-adc6-444d-ba94-1238894df42c/61e73d48-c17f-42fb-8c81-1fe455395f5f/",
+  "name": "fic-gha-kv-reader",
+  "resourceGroup": "kml_rg_main-951bd60c4be54f3c",
+  "subject": "system:serviceaccount:arc-runners:gha-kv-reader",
+  "type": "Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials"
+}
+
