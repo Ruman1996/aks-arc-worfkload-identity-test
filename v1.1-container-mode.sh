@@ -61,3 +61,14 @@ kubectl create serviceaccount arc-runner -n arc-runners
 helm get values arc-kv-poc \
   -n arc-runners \
   -o yaml > runner-values-backup.yaml
+
+
+# new runner values file use the updated in this branch 
+
+helm upgrade --install arc-kv-poc \
+  oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set \
+  --namespace arc-runners \
+  --version 0.15.1 \
+  --set controllerServiceAccount.namespace=arc-systems \
+  --set controllerServiceAccount.name=arc-gha-rs-controller \
+  -f runner-values.yaml
