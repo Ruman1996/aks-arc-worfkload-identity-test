@@ -368,3 +368,105 @@ az identity federated-credential create \
   "type": "Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials"
 }
 
+
+# github app secret creation
+export GITHUB_APP_ID="5679935"
+export GITHUB_APP_INSTALLATION_ID="180143290"
+export GITHUB_APP_PRIVATE_KEY_FILE="./key.pem"
+
+kubectl create secret generic arc-github-app \
+  --namespace arc-runners \
+  --from-literal=github_app_id="$GITHUB_APP_ID" \
+  --from-literal=github_app_installation_id="$GITHUB_APP_INSTALLATION_ID" \
+  --from-file=github_app_private_key="$GITHUB_APP_PRIVATE_KEY_FILE"
+
+# arc installtion charts - check the version present 
+
+helm show chart \
+  oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set-controller
+
+helm show chart \
+  oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set
+
+output: 
+
+helm show chart \
+  oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set
+Pulled: ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set-controller:0.15.1
+Digest: sha256:c2497a6dedaaa723322abfe9ea2f5a81b9b8fbb90b38e45d7835b6c7629a3aae
+apiVersion: v2
+appVersion: 0.15.1
+description: A Helm chart for install actions-runner-controller CRD
+home: https://github.com/actions/actions-runner-controller
+maintainers:
+- name: actions
+  url: https://github.com/actions
+name: gha-runner-scale-set-controller
+sources:
+- https://github.com/actions/actions-runner-controller
+type: application
+version: 0.15.1
+
+Pulled: ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set:0.15.1
+Digest: sha256:2ae7e43db61047aa3c4182e73c8f58ace35e796fa07d41b64fb3c39e81e1f365
+apiVersion: v2
+appVersion: 0.15.1
+description: A Helm chart for deploying an AutoScalingRunnerSet
+home: https://github.com/actions/actions-runner-controller
+maintainers:
+- name: actions
+  url: https://github.com/actions
+name: gha-runner-scale-set
+sources:
+- https://github.com/actions/actions-runner-controller
+type: application
+version: 0.15.1
+
+
+
+
+
+export ARC_VERSION="0.15.1"
+
+helm upgrade --install arc \
+  oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set-controller \
+  --namespace arc-systems \
+  --create-namespace \
+  --version "$ARC_VERSION"
+
+output: 
+Release "arc" does not exist. Installing it now.
+Pulled: ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set-controller:0.15.1
+Digest: sha256:c2497a6dedaaa723322abfe9ea2f5a81b9b8fbb90b38e45d7835b6c7629a3aae
+NAME: arc
+LAST DEPLOYED: Mon Nov  9 12:44:24 2026
+NAMESPACE: arc-systems
+STATUS: deployed
+REVISION: 1
+DESCRIPTION: Install complete
+TEST SUITE: None
+NOTES:
+Thank you for installing gha-runner-scale-set-controller.
+
+Your release is named arc.
+
+# check pod running for the controller 
+
+helm list -n arc-systems
+
+kubectl get pods -n arc-systems -w
+NAME    NAMESPACE       REVISION        UPDATED                                 STATUS          CHART                                   APP VERSION
+arc     arc-systems     1               2026-11-09 12:44:24.238262223 +0000 UTC deployed        gha-runner-scale-set-controller-0.15.1  0.15.1     
+NAME                                    READY   STATUS    RESTARTS   AGE
+arc-gha-rs-controller-d6d787688-6xpz6   1/1     Running   0          71s
+
+7. Configure the ARC runner scale set with the UAMI
+This is the most important configuration in this PoC.
+
+We will configure the runner pod template with:
+- serviceAccountName: gha-kv-reader
+- azure.workload.identity/use: "true"
+That is how the runner receives the Azure identity
+
+
+export GITHUB_CONFIG_URL="https://github.com/ruman1996"
