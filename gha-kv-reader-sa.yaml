@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gha-kv-reader
+  namespace: arc-runners
+  annotations:
+    azure.workload.identity/client-id: "888dd375-e5eb-4440-b378-b42f7c566e37"
+    # "<UAMI_CLIENT_ID>"
